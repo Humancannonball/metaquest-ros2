@@ -390,3 +390,4 @@ ros2 launch stl_model display_model.py
 echo -e "${YELLOW}Cleaning up temporary files...${NC}"
 rm -rf $TEMP_WS
 echo -e "${GREEN}Done!${NC}"
+
