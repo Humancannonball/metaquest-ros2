@@ -147,9 +147,9 @@ cat > $TEMP_WS/src/stl_model/models/clean_model/model.sdf << EOF
       </mesh>
     </geometry>
     <material>
-      <ambient>0.3 0.3 0.3 1</ambient>
-      <diffuse>0.7 0.7 0.7 1</diffuse>
-      <specular>0.01 0.01 0.01 1</specular>
+      <ambient>0.5 0.5 0.5 1</ambient>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
     </material>
     </visual>
   </link>
@@ -194,6 +194,19 @@ cat > $TEMP_WS/src/stl_model/worlds/clean_world.sdf << EOF
       <direction>-0.5 0.1 -0.9</direction>
     </light>
     
+    <light type="point" name="point_light1">
+      <pose>0 0 2 0 0 0</pose>
+      <diffuse>0.4 0.4 0.4 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>20</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <cast_shadows>false</cast_shadows>
+    </light>
+    
     <model name="ground_plane">
       <static>true</static>
       <link name="link">
@@ -223,7 +236,9 @@ cat > $TEMP_WS/src/stl_model/worlds/clean_world.sdf << EOF
     
     <include>
       <uri>model://clean_model</uri>
-      <pose>5 5 0 0 0 0</pose>
+      <name>room</name>
+      <pose>0 0 0 0 0 0</pose>
+      <static>true</static>
     </include>
   </world>
 </sdf>
@@ -270,9 +285,9 @@ def generate_launch_description():
   else:
     os.environ['IGN_GAZEBO_RESOURCE_PATH'] = gazebo_model_path
 
-  # Launch Gazebo Fortress
+  # Launch Gazebo Fortress with verbose mode for debugging
   gazebo = ExecuteProcess(
-    cmd=['ign', 'gazebo', '-r', world_file],
+    cmd=['ign', 'gazebo', '-v', '4', '-r', world_file],
     output='screen'
   )
   
@@ -293,15 +308,16 @@ def generate_launch_description():
     parameters=[{'use_sim_time': True, 'robot_description': robot_desc}]
   )
   
-  # Spawn the robot in Gazebo
+  # Position the robot inside the room based on expected room dimensions
+  # These coordinates need to be adjusted based on your actual room model
   spawn_robot = Node(
     package='ros_gz_sim',
     executable='create',
     arguments=[
       '-name', 'simple_robot',
-      '-x', '2.0',
-      '-y', '2.0',
-      '-z', '0.1',
+      '-x', '0.0',   # Center of room, adjust as needed
+      '-y', '0.0',   # Center of room, adjust as needed 
+      '-z', '0.1',   # Slightly above ground
       '-Y', '0.0',
       '-topic', '/robot_description'
     ],
@@ -1208,10 +1224,34 @@ done
 echo -e "${YELLOW}Listing all directories in package:${NC}"
 ls -la $TEMP_WS/src/stl_model/
 
-# Launch Gazebo with our model
+# Add a debugging section before launching Gazebo
+echo -e "${YELLOW}Checking STL model...${NC}"
+if [ -f "$TEMP_WS/src/stl_model/models/clean_model/meshes/clean.stl" ]; then
+  echo -e "${GREEN}STL file found in model directory${NC}"
+else
+  echo -e "${RED}STL file NOT found in model directory!${NC}"
+  exit 1
+fi
+
+# Check if the model.sdf file was created correctly
+if [ -f "$TEMP_WS/src/stl_model/models/clean_model/model.sdf" ]; then
+  echo -e "${GREEN}Model SDF file created successfully${NC}"
+else
+  echo -e "${RED}Model SDF file missing!${NC}"
+  exit 1
+fi
+
+# Create a custom environment variable to force higher debugging level for Gazebo
+export IGN_VERBOSE=4
+
+# Update environment variable before launching
 echo -e "${GREEN}Launching Gazebo Fortress with the STL model...${NC}"
 # Export the Gazebo model path before launching
 export IGN_GAZEBO_RESOURCE_PATH=$TEMP_WS/src/stl_model/models:$IGN_GAZEBO_RESOURCE_PATH
+# Add debugging info
+echo -e "${YELLOW}Gazebo model path: $IGN_GAZEBO_RESOURCE_PATH${NC}"
+echo -e "${YELLOW}World file: $TEMP_WS/src/stl_model/worlds/clean_world.sdf${NC}"
+
 ros2 launch stl_model display_model.py
 
 # Clean up temp workspace
